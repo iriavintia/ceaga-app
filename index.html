@@ -206,8 +206,16 @@ textarea{padding:12px 14px;min-height:84px;resize:none;line-height:1.4}
 const { useState, useRef, useEffect } = React;
 const h = React.createElement;
 
-/* Pon esto en false para quitar la gamificación entera: solo vive en el componente Logros. */
-const GAMIFICACION = true;
+/* ---------- Versión para presentar (demo acotada) ----------
+   Con ?version=demo en la dirección se ocultan las funciones que no enseñamos en la presentación.
+   Sin el parámetro se ve la versión completa. Los números son los de la lista de funciones (1-40).
+   Para cambiar qué se enseña, añade o quita números de OCULTAS_EN_DEMO. */
+const OCULTAS_EN_DEMO = [5, 9, 13, 15, 19, 21, 23, 26, 31, 33];
+const VERSION_DEMO = (() => { try { return new URLSearchParams(location.search).get('version') === 'demo'; } catch (e) { return false; } })();
+const ver = n => !(VERSION_DEMO && OCULTAS_EN_DEMO.includes(n));
+
+/* Pon esto en false para quitar la gamificación entera: solo vive en el componente Logros (función 31). */
+const GAMIFICACION = true && ver(31);
 
 /* ---------- Fecha fija de la demo: lunes 16 de noviembre de 2026, 9:00 ---------- */
 const AHORA = new Date(2026, 10, 16, 9, 0);
@@ -409,7 +417,7 @@ function destacados(perfil) {
   const cand = [
     ...EVENTOS.filter(e => puedeAcceder(e, perfil)).map(e => ({ clase: 'evento', id: e.id, etiqueta: TIPO_TXT[e.tipo] + ' · ' + fCorta(e.fecha), titulo: e.titulo, cuando: e.plazo, x: e, cta: 'Ver y apuntarme' })),
     ...AYUDAS.filter(a => a.tipos.includes(perfil.tipo)).map(a => ({ clase: 'ayuda', id: a.id, etiqueta: 'Ayuda · cierra el ' + fCorta(a.plazo), titulo: a.titulo, cuando: a.plazo, x: a, cta: 'Ver la ayuda' })),
-    ...INFORMES.filter(i => i.nuevo && puedeAcceder(i, perfil)).map(i => ({ clase: 'informe', id: i.id, etiqueta: 'Informe nuevo · ' + i.tipo, titulo: i.titulo, cuando: D(12, 31), x: i, cta: 'Leer el informe' }))
+    ...INFORMES.filter(i => ver(26) && i.nuevo && puedeAcceder(i, perfil)).map(i => ({ clase: 'informe', id: i.id, etiqueta: 'Informe nuevo · ' + i.tipo, titulo: i.titulo, cuando: D(12, 31), x: i, cta: 'Leer el informe' }))
   ];
   return cand.sort((a, b) => nota(b.x, perfil) - nota(a.x, perfil) || a.cuando - b.cuando).slice(0, 3);
 }
@@ -512,18 +520,19 @@ function ParaTi({ perfil, ctx }) {
   useEffect(() => { if (car.current) car.current.scrollLeft = 0; setIdx(0); }, [clave]);
   const onScroll = () => { const el = car.current; const paso = el.firstChild.offsetWidth + 12; setIdx(Math.min(dest.length - 1, Math.round(el.scrollLeft / paso))); };
   const abre = d => d.clase === 'evento' ? ctx.abrirEvento(d.id) : d.clase === 'ayuda' ? ctx.irRecursos('ayudas') : ctx.irRecursos('informes');
-  const proximos = EVENTOS.filter(e => e.fecha <= finSemana).slice().sort((a, b) => nota(b, perfil) - nota(a, perfil) || a.fecha - b.fecha).slice(0, 4);
+  const proximos = EVENTOS.filter(e => e.fecha <= finSemana && (ver(15) || puedeAcceder(e, perfil))).slice().sort((a, b) => nota(b, perfil) - nota(a, perfil) || a.fecha - b.fecha).slice(0, 4);
   const sinLeer = ctx.notifs.filter(n => !n.leida).length;
-  const QA = [['Empresas', 'build', () => ctx.irEco('empresas')], ['BFA', 'bulb', () => ctx.irEco('bfa')], ['Marketplace', 'store', () => ctx.irEco('market')], ['Ayudas', 'euro', () => ctx.irRecursos('ayudas')], ['Informes', 'doc', () => ctx.irRecursos('informes')], ['Empleo', 'bag', () => ctx.irRecursos('empleo')]];
+  const QA = [['Empresas', 'build', () => ctx.irEco('empresas')], ['BFA', 'bulb', () => ctx.irEco('bfa')], ['Marketplace', 'store', () => ctx.irEco('market')], ['Ayudas', 'euro', () => ctx.irRecursos('ayudas')], ['Informes', 'doc', () => ctx.irRecursos('informes')], ['Empleo', 'bag', () => ctx.irRecursos('empleo')]]
+    .filter(([t]) => !(t === 'BFA' && !ver(23)) && !(t === 'Informes' && !ver(26)));
   return h('div', { className: 'pad' },
     h('div', { className: 'between' }, h('div', { className: 'brand' }, 'CEAGA'),
       h('div', { className: 'row', style: { gap: 4 } },
-        h('button', { className: 'demo' + (ctx.demo ? ' on' : ''), onClick: ctx.lanzarDemo }, ctx.demo ? 'Demo: día siguiente' : 'Modo demo'),
+        ver(9) && h('button', { className: 'demo' + (ctx.demo ? ' on' : ''), onClick: ctx.lanzarDemo }, ctx.demo ? 'Demo: día siguiente' : 'Modo demo'),
         h('button', { className: 'bell', 'aria-label': `Notificaciones: ${sinLeer} sin leer`, onClick: ctx.abrirNotifs }, h(Ic, { n: 'bell', s: 22 }), sinLeer > 0 && h('span', { className: 'dot' }, sinLeer)))),
     h('div', { className: 'stack-s' }, h('h1', null, 'Buenos días, Iria'), h('div', { className: 'sub' }, 'Lunes, 16 de noviembre · ' + perfil.empresa)),
     h('div', { className: 'between' },
       h('div', { className: 'small', style: { minWidth: 0 } }, perfil.temas.length ? 'Destacamos según ' + perfil.cargo + ' · ' + perfil.temas.map(nombreTema).join(', ') : 'Aún no has elegido intereses'),
-      h('button', { className: 'link', style: { flexShrink: 0 }, onClick: () => ctx.irEspacio('prefs') }, 'Cambiar')),
+      ver(33) && h('button', { className: 'link', style: { flexShrink: 0 }, onClick: () => ctx.irEspacio('prefs') }, 'Cambiar')),
     h('section', { className: 'stack', 'aria-label': 'Recomendado para ti' },
       h('div', { className: 'carousel', ref: car, onScroll },
         dest.map(d => h('div', { key: d.id, className: 'hero slide' },
@@ -543,7 +552,7 @@ function ParaTi({ perfil, ctx }) {
       h('div', { className: 'between base' }, h('h2', null, 'Próximos eventos'), h('button', { className: 'link', style: { flexShrink: 0 }, onClick: () => ctx.irTab('agenda') }, 'Agenda completa')),
       h('div', { className: 'small' }, 'Lo que encaja contigo va primero. Ves todo lo del clúster.'),
       proximos.map(e => h(TarjetaEvento, { key: e.id, e, ctx, conMotivo: true }))),
-    h('section', { className: 'stack' },
+    ver(5) && h('section', { className: 'stack' },
       h('div', { className: 'between base' }, h('h2', null, 'Nuevos informes'), h('button', { className: 'link', style: { flexShrink: 0 }, onClick: () => ctx.irRecursos('informes') }, 'Ver todos')),
       INFORMES.filter(i => i.nuevo).map(i => h(TarjetaInforme, { key: i.id, i, ctx }))),
     h('button', { className: 'card', style: { flexDirection: 'row', gap: 14, alignItems: 'center' }, onClick: () => ctx.abrirPasado(ultimo.id) },
@@ -571,7 +580,7 @@ function Notificaciones({ ctx }) {
         h('div', { className: 'av round', style: { width: 40, height: 40 } }, h(Ic, { n: n.ic, s: 18 })),
         h('div', { className: 'stack-s', style: { flex: 1 } }, h('div', { className: 't', style: { fontSize: 14 } }, n.t), h('div', { className: 'small' }, n.cuando)),
         !n.leida && h('span', { className: 'unread-dot', 'aria-label': 'Sin leer' })))),
-    h('div', { className: 'small', style: { textAlign: 'center' } }, 'Eliges qué notificaciones recibir en Mi espacio › Preferencias.')));
+    ver(33) && h('div', { className: 'small', style: { textAlign: 'center' } }, 'Eliges qué notificaciones recibir en Mi espacio › Preferencias.')));
 }
 
 /* ---------- Agenda ---------- */
@@ -580,8 +589,8 @@ function Agenda({ ctx }) {
   const [tema, setTema] = useState('todos');
   const [cuando, setCuando] = useState('mes');
   const lim = cuando === 'semana' ? finSemana : cuando === 'mes' ? finMes : D(12, 31);
-  const lista = EVENTOS.filter(e => (tipo === 'todo' || e.tipo === tipo) && (tema === 'todos' || e.temas.includes(tema)) && e.fecha <= lim).sort((a, b) => a.fecha - b.fecha);
-  const pasados = PASADOS.filter(p => tipo === 'todo' || p.tipo === tipo);
+  const lista = EVENTOS.filter(e => (tipo === 'todo' || e.tipo === tipo) && (tema === 'todos' || e.temas.includes(tema)) && e.fecha <= lim && (ver(15) || puedeAcceder(e, ctx.perfil))).sort((a, b) => a.fecha - b.fecha);
+  const pasados = ver(13) ? PASADOS.filter(p => tipo === 'todo' || p.tipo === tipo) : [];
   return h('div', { className: 'pad', style: { gap: 16 } },
     h('div', { className: 'between' }, h('h1', null, 'Agenda'), h('div', { className: 'sub', style: { fontWeight: 600, flexShrink: 0 } }, 'Noviembre 2026')),
     h(Chips, { label: 'Tipo de actividad', val: tipo, set: setTipo, opts: [['todo', 'Todo'], ['evento', 'Jornadas'], ['formacion', 'Formación'], ['grupo', 'Grupos de trabajo'], ['encuentro', 'Encuentros']] }),
@@ -614,7 +623,7 @@ function DetalleEvento({ id, ctx }) {
             h('button', { className: 'btn ghost-n', onClick: () => ctx.avisa('Correo simulado a tu KAM para pedir acceso.') }, 'Consultar con mi KAM'))
         : ins
           ? h('div', { className: 'stack' }, h('button', { className: 'btn white lg', onClick: () => ctx.abrirInscripcion(id, 3) }, 'Ver mi entrada'),
-              h('button', { className: 'btn ghost-n', onClick: () => ctx.cancelar(id) }, 'Cancelar inscripción'))
+              ver(19) && h('button', { className: 'btn ghost-n', onClick: () => ctx.cancelar(id) }, 'Cancelar inscripción'))
           : h('button', { className: 'btn white lg', onClick: () => ctx.abrirInscripcion(id, 1) }, 'Inscribirme')),
     h('div', { className: 'pad', style: { gap: 16 } },
       h('div', { className: 'card' }, h('div', { className: 'label' }, 'Qué te llevas'), h('div', { style: { fontSize: 14, lineHeight: 1.45 } }, e.llevas)),
@@ -765,7 +774,7 @@ function Inscripcion({ id, inicio, ctx }) {
             h('div', null, h('span', { className: 'sub' }, 'Van'), h('b', { style: { overflowWrap: 'anywhere' } }, nombres().join(', '))),
             e.networking && h('div', null, h('span', { className: 'sub' }, 'Networking'), h('b', null, net ? 'Apareces' : 'No apareces'))),
           invitados.length > 0 && h('div', { className: 'note' }, 'Quien invitas por correo recibe su entrada sin crear cuenta.'),
-          h('div', { className: 'small' }, 'Si no puedes ir, cancela desde el evento y la plaza pasa a otra empresa.'))),
+          ver(19) && h('div', { className: 'small' }, 'Si no puedes ir, cancela desde el evento y la plaza pasa a otra empresa.'))),
     h('div', { className: 'flow-foot' }, h('button', { className: 'btn solid lg', onClick: () => { if (paso === 1) setPaso(2); else { ctx.confirmar(id, { compas: sel, invitados, nombres: nombres(), networking: !!(e.networking && net) }); setPaso(3); } } }, paso === 1 ? 'Continuar' : 'Confirmar inscripción')));
 }
 
@@ -818,7 +827,7 @@ function Ecosistema({ ctx }) {
   }
   return h('div', { className: 'pad', style: { gap: 14 } },
     h('div', { className: 'stack-s' }, h('h1', null, 'Ecosistema'), h('div', { className: 'sub' }, 'Empresas, startups y soluciones del clúster')),
-    h(Segment, { label: 'Sección del ecosistema', val: sub, set: setSub, opts: [['empresas', 'Empresas'], ['bfa', 'Startups BFA'], ['market', 'Marketplace']] }),
+    h(Segment, { label: 'Sección del ecosistema', val: sub, set: setSub, opts: [['empresas', 'Empresas'], ['bfa', 'Startups BFA'], ['market', 'Marketplace']].filter(([id]) => id !== 'bfa' || ver(23)) }),
     cuerpo);
 }
 function DetalleEmpresa({ id, ctx }) {
@@ -863,8 +872,8 @@ function Recursos({ ctx }) {
       h(Fuente, null, 'Ofertas y candidaturas se gestionan en el Portal de Empleo. La app solo las enseña.'));
   }
   return h('div', { className: 'pad', style: { gap: 14 } },
-    h('div', { className: 'stack-s' }, h('h1', null, 'Recursos'), h('div', { className: 'sub' }, 'Ayudas, informes y empleo')),
-    h(Segment, { label: 'Tipo de recurso', val: sub, set: setSub, opts: [['ayudas', 'Ayudas'], ['informes', 'Informes'], ['empleo', 'Empleo']] }),
+    h('div', { className: 'stack-s' }, h('h1', null, 'Recursos'), h('div', { className: 'sub' }, ver(26) ? 'Ayudas, informes y empleo' : 'Ayudas y empleo')),
+    h(Segment, { label: 'Tipo de recurso', val: sub, set: setSub, opts: [['ayudas', 'Ayudas'], ['informes', 'Informes'], ['empleo', 'Empleo']].filter(([id]) => id !== 'informes' || ver(26)) }),
     cuerpo);
 }
 
@@ -930,9 +939,9 @@ function MiEspacio({ ctx }) {
           h('button', { className: 'sw', role: 'switch', 'aria-checked': ctx.prefsNotif[k], 'aria-label': t, onClick: () => ctx.setPrefsNotif({ ...ctx.prefsNotif, [k]: !ctx.prefsNotif[k] }) })))));
   }
   return h('div', { className: 'pad', style: { gap: 16 } },
-    h('div', { className: 'between' }, h('h1', null, 'Mi espacio'), h('button', { className: 'demo' + (ctx.demo ? ' on' : ''), onClick: ctx.lanzarDemo }, ctx.demo ? 'Demo: día siguiente' : 'Modo demo')),
+    h('div', { className: 'between' }, h('h1', null, 'Mi espacio'), ver(9) && h('button', { className: 'demo' + (ctx.demo ? ' on' : ''), onClick: ctx.lanzarDemo }, ctx.demo ? 'Demo: día siguiente' : 'Modo demo')),
     h(KamCard, { ctx }),
-    h(Segment, { label: 'Apartado de Mi espacio', val: sub, set: setSub, opts: [['perfil', 'Perfil'], ['actividad', 'Actividad'], ['prefs', 'Preferencias']] }),
+    h(Segment, { label: 'Apartado de Mi espacio', val: sub, set: setSub, opts: [['perfil', 'Perfil'], ['actividad', 'Actividad'], ['prefs', 'Preferencias']].filter(([id]) => id !== 'prefs' || ver(33)) }),
     cuerpo);
 }
 
@@ -1020,7 +1029,7 @@ function App() {
   const [asistidos, setAsistidos] = useState(7);
   const [cumplido, setCumplido] = useState(false);
   const [encuestas, setEncuestas] = useState({});
-  const [notifs, setNotifs] = useState(NOTIFS_INI);
+  const [notifs, setNotifs] = useState(NOTIFS_INI.filter(n => ver(26) || !(n.ir && n.ir.sub === 'informes')));
   const [prefsNotif, setPrefsNotif] = useState({ ins: true, reu: true, inf: true, ayu: true, tem: false });
   const [subEco, setSubEco] = useState('empresas');
   const [subRec, setSubRec] = useState('ayudas');
@@ -1153,6 +1162,7 @@ function App() {
     h('div', { className: 'demo-bar' }, h('div', { className: 'demo-seg', role: 'group', 'aria-label': 'Qué parte de la demo ver' },
       h('button', { className: vista === 'app' ? 'on' : '', 'aria-pressed': vista === 'app', onClick: () => cambiarVista('app') }, 'App de socias'),
       h('button', { className: vista === 'backoffice' ? 'on' : '', 'aria-pressed': vista === 'backoffice', onClick: () => cambiarVista('backoffice') }, 'Backoffice CEAGA', nuevas > 0 && h('span', { className: 'n', 'aria-label': nuevas + ' novedades desde la app' }, nuevas)))),
+    VERSION_DEMO && h('div', { className: 'small', style: { textAlign: 'center', padding: '0 12px 8px' } }, 'Versión para presentar: 30 de 40 funciones · ', h('a', { href: '?' }, 'ver la versión completa')),
     h('div', { className: 'phone-area', hidden: vista !== 'app' }, movil),
     h('iframe', { id: 'bo-frame', className: 'bo-frame', title: 'Backoffice de CEAGA', srcDoc: backofficeHtml, hidden: vista !== 'backoffice' }));
 }

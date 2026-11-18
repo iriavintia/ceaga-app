@@ -3,6 +3,7 @@
 Prototipo web de la app para las empresas socias de CEAGA, con su backoffice. Proyecto del COP (LEINN) con CEAGA como cliente.
 
 - **Web (demo):** https://ceaga-app.vercel.app
+- **Versión para presentar (30 de 40 funciones):** https://ceaga-app.vercel.app/?version=demo
 - **Repo:** https://github.com/iriavintia/ceaga-app
 
 ## Qué hay hoy
@@ -10,6 +11,7 @@ Prototipo web de la app para las empresas socias de CEAGA, con su backoffice. Pr
 - `index.html`: la app completa en un solo archivo (HTML estático, React desde CDN). No necesita compilación ni `npm`.
 - Despliegue: Vercel, como sitio estático (sin framework y sin build).
 - La demo tiene **dos vistas** (barra de arriba): *App de socias* y *Backoffice CEAGA*. Lo que hace una socia en la app aparece en el backoffice.
+- **Versión para presentar:** con `?version=demo` en la dirección se ocultan las funciones 5, 9, 13, 15, 19, 21, 23, 26, 31 y 33 de la lista de funciones. Sin el parámetro se ve todo. Para cambiar qué se oculta, edita la lista `OCULTAS_EN_DEMO` al principio del script de `index.html`.
 - Los datos son **de ejemplo** y se reinician al recargar la página. Nada se guarda.
 
 Pantallas de la demo: Para ti, Agenda (eventos, detalle e inscripción, networking, encuesta), Ecosistema (empresas y ficha de empresa), Recursos, Mi espacio y Registro.
